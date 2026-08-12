@@ -1,4 +1,5 @@
 import snap7
+from snap7.util import get_real
 
 from config.plc_config import (
     PLC_IP,
@@ -24,6 +25,7 @@ class Snap7Client:
         """
         Connect to the PLC.
         """
+
         self.client.connect(
             PLC_IP,
             PLC_RACK,
@@ -36,7 +38,9 @@ class Snap7Client:
         """
         Disconnect from the PLC.
         """
-        self.client.disconnect()
+
+        if self.client.get_connected():
+            self.client.disconnect()
 
     # ---------------------------------------------------------
 
@@ -44,7 +48,28 @@ class Snap7Client:
         """
         Returns True if connected.
         """
+
         return self.client.get_connected()
+
+    # ---------------------------------------------------------
+
+    def read_real(
+        self,
+        db_number: int,
+        offset: float,
+    ):
+        """
+        Reads a REAL (32-bit floating point) value
+        from the specified Data Block.
+        """
+
+        data = self.client.db_read(
+            db_number,
+            int(offset),
+            4,
+        )
+
+        return get_real(data, 0)
 
 
 # -------------------------------------------------------------
@@ -55,17 +80,30 @@ if __name__ == "__main__":
 
     plc = Snap7Client()
 
+    print("=" * 60)
     print("Connecting to PLC...")
+    print("=" * 60)
 
     try:
+
         plc.connect()
 
-        print("Connected:", plc.is_connected())
+        print("Connected :", plc.is_connected())
+
+        value = plc.read_real(
+            db_number=1,
+            offset=0,
+        )
+
+        print(f"DB1.DBD0 = {value}")
 
     except Exception as e:
-        print("Connection Failed!")
+
+        print("\nConnection / Read Failed")
         print(e)
 
     finally:
+
         plc.disconnect()
+
         print("Disconnected.")
