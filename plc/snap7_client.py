@@ -1,5 +1,5 @@
 import snap7
-from snap7.util import get_real
+from snap7.util import get_real, get_bool
 
 from config.plc_config import (
     PLC_IP,
@@ -59,8 +59,7 @@ class Snap7Client:
         offset: float,
     ):
         """
-        Reads a REAL (32-bit floating point) value
-        from the specified Data Block.
+        Reads a REAL value.
         """
 
         data = self.client.db_read(
@@ -70,6 +69,37 @@ class Snap7Client:
         )
 
         return get_real(data, 0)
+
+    # ---------------------------------------------------------
+
+    def read_bool(
+        self,
+        db_number: int,
+        byte_offset: int,
+        bit_offset: int,
+    ):
+        """
+        Reads a BOOL value.
+
+        Example:
+            %DB101.DBX2.1
+
+            db_number = 101
+            byte_offset = 2
+            bit_offset = 1
+        """
+
+        data = self.client.db_read(
+            db_number,
+            byte_offset,
+            1,
+        )
+
+        return get_bool(
+            data,
+            0,
+            bit_offset,
+        )
 
 
 # -------------------------------------------------------------
@@ -96,6 +126,15 @@ if __name__ == "__main__":
         )
 
         print(f"DB1.DBD0 = {value}")
+
+        # Example BOOL read
+        alarm = plc.read_bool(
+            db_number=101,
+            byte_offset=2,
+            bit_offset=0,
+        )
+
+        print(f"DB101.DBX2.0 = {alarm}")
 
     except Exception as e:
 

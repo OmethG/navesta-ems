@@ -4,13 +4,14 @@ from plc.snap7_client import Snap7Client
 
 class PLCManager:
     """
-    High-level PLC manager.
+    High-level PLC Manager.
 
     Responsible for:
 
     - Loading PLC tags
     - Managing the Snap7 client
     - Reading live PLC values
+    - Returning values grouped by room
     """
 
     def __init__(self, excel_path: str):
@@ -24,41 +25,72 @@ class PLCManager:
     # ---------------------------------------------------------
 
     def connect(self):
-
+        """Connect to the PLC."""
         self.client.connect()
 
     # ---------------------------------------------------------
 
     def disconnect(self):
-
+        """Disconnect from the PLC."""
         self.client.disconnect()
 
     # ---------------------------------------------------------
 
     def get_tags(self):
-
+        """Returns all PLC tags."""
         return self.tags
 
     # ---------------------------------------------------------
 
     def read_all_values(self):
         """
-        Reads every PLC tag and returns
-        a dictionary of live values.
+        Reads every configured PLC tag.
+
+        Returns
+        -------
+        dict
+
+        Example:
+
+        {
+            "G024": {
+                "temperature": 21.0,
+                "humidity": 48.2,
+                "pressure": 15.0,
+            },
+
+            "G027": {
+                "temperature": 22.4,
+                "humidity": 49.1,
+                "pressure": 14.8,
+            }
+        }
         """
 
         values = {}
 
         for tag in self.tags:
 
-            if tag.datatype == "REAL":
+            if tag.datatype != "REAL":
+                continue
 
-                value = self.client.read_real(
-                    tag.db,
-                    tag.offset,
-                )
+            value = self.client.read_real(
+                tag.db,
+                tag.offset,
+            )
 
-                values[(tag.room_no, tag.parameter)] = value
+            room = tag.room_no
+
+            parameter = tag.parameter.lower()
+
+            # Normalize PLC parameter names
+            if parameter == "rh":
+                parameter = "humidity"
+
+            if room not in values:
+                values[room] = {}
+
+            values[room][parameter] = value
 
         return values
 
@@ -76,10 +108,17 @@ if __name__ == "__main__":
     values = plc.read_all_values()
 
     print("=" * 80)
-    print(f"Values Read : {len(values)}")
+    print(f"Rooms Read : {len(values)}")
     print("=" * 80)
 
-    for key, value in list(values.items())[:20]:
-        print(key, "=", value)
+    for room_no, room_values in list(values.items())[:10]:
+
+        print(room_no)
+
+        for parameter, value in room_values.items():
+
+            print(f"   {parameter:<12} = {value}")
+
+        print()
 
     plc.disconnect()

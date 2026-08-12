@@ -4,13 +4,14 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QSizePolicy,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from theme import Theme
 from widgets.header import Header
 from widgets.column_widget import ColumnWidget
 from widgets.status_bar import StatusBar
 
 from config.excel_loader import ExcelLoader
+from plc.plc_manager import PLCManager
 
 
 class Dashboard(QWidget):
@@ -21,7 +22,28 @@ class Dashboard(QWidget):
         self.loader = ExcelLoader("data/Details.xlsx")
         self.ahus = self.loader.load_dashboard()
 
+        self.plc = PLCManager("data/Details.xlsx")
+
         self.build_ui()
+
+        # --------------------------------------------
+        # First PLC Update
+        # --------------------------------------------
+
+        # Connect to PLC once
+        self.plc.connect()
+
+        # Initial update
+        values = self.plc.read_all_values()
+        self.update_values(values)
+
+        # -------------------------------------------------
+        # Refresh PLC every second
+        # -------------------------------------------------
+
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.refresh_plc)
+        self.timer.start(1000)
 
     # =========================================================
 
@@ -72,19 +94,25 @@ class Dashboard(QWidget):
 
         self.columnThree = ColumnWidget(column3)
 
-        # =====================================================
-        # Master room widget registry
-        # =====================================================
+        # -----------------------------------------------------
+        # Collect all room widgets
+        # -----------------------------------------------------
 
         self.room_widgets = {}
 
-        self.room_widgets.update(self.columnOne.room_widgets)
-        self.room_widgets.update(self.columnTwo.room_widgets)
-        self.room_widgets.update(self.columnThree.room_widgets)
+        self.room_widgets.update(
+            self.columnOne.get_room_widgets()
+        )
+
+        self.room_widgets.update(
+            self.columnTwo.get_room_widgets()
+        )
+
+        self.room_widgets.update(
+            self.columnThree.get_room_widgets()
+        )
 
         print(f"Total Rooms Registered: {len(self.room_widgets)}")
-
-
 
         # -----------------------------------------------------
         # ADD COLUMNS
@@ -160,6 +188,41 @@ class Dashboard(QWidget):
             QSizePolicy.Preferred
         )
 
+    # =========================================================
+    # LIVE PLC UPDATE
+    # =========================================================
+
+    def update_values(self, values):
+        """
+        Updates all room values on the dashboard.
+        """
+
+        for room_no, room_values in values.items():
+
+            if "temperature" in room_values:
+
+                self.update_room_value(
+                    room_no,
+                    "temperature",
+                    room_values["temperature"]
+                )
+
+            if "humidity" in room_values:
+
+                self.update_room_value(
+                    room_no,
+                    "humidity",
+                    room_values["humidity"]
+                )
+
+            if "pressure" in room_values:
+
+                self.update_room_value(
+                    room_no,
+                    "pressure",
+                    room_values["pressure"]
+                )
+
 
 
     def update_room_value(
@@ -202,3 +265,44 @@ class Dashboard(QWidget):
             font-weight:700;
             background:transparent;
         """)
+
+    # =========================================================
+    # PLC REFRESH
+    # =========================================================
+
+    def refresh_plc(self):
+        """
+        Reads the latest values from the PLC and updates
+        the dashboard.
+        """
+
+        try:
+
+            values = self.plc.read_all_values()
+
+            self.update_values(values)
+
+        except Exception as e:
+
+            print("PLC Refresh Error:", e)
+
+    # =========================================================
+    # CLEANUP
+    # =========================================================
+
+    def closeEvent(self, event):
+        """
+        Disconnect from the PLC when the application closes.
+        """
+
+        try:
+
+            if self.timer.isActive():
+                self.timer.stop()
+
+            self.plc.disconnect()
+
+        except Exception:
+            pass
+
+        event.accept()

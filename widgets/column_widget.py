@@ -319,6 +319,19 @@ class ColumnWidget(QWidget):
         # SPACE AFTER AHU
         # ------------------------------------------------------
 
+
     
 
         return section
+
+    # ==========================================================
+    # PUBLIC METHODS
+    # ==========================================================
+
+    def get_room_widgets(self):
+        """
+        Returns all room widget references
+        in this column.
+        """
+
+        return self.room_widgets
