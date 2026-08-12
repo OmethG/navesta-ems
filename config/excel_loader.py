@@ -2,20 +2,12 @@ from pathlib import Path
 
 import pandas as pd
 
+from plc.plc_tag import PLCTag
+
 
 class ExcelLoader:
     """
-    Loads AHU and Room information from Details.xlsx
-
-    Expected sheet:
-        Name
-
-    Expected columns:
-        AHU
-        Room Name
-        Room Number
-
-    The loader automatically groups rooms under each AHU.
+    Loads configuration data from Details.xlsx.
     """
 
     def __init__(self, excel_path: str):
@@ -27,8 +19,39 @@ class ExcelLoader:
             )
 
     # ---------------------------------------------------------
+    # Helpers
+    # ---------------------------------------------------------
 
-    def load(self):
+    def _validate_columns(
+        self,
+        dataframe,
+        required_columns,
+        sheet_name
+    ):
+        """
+        Validate that all required columns exist.
+        """
+
+        missing = [
+            column
+            for column in required_columns
+            if column not in dataframe.columns
+        ]
+
+        if missing:
+            raise ValueError(
+                f"{sheet_name} sheet is missing required column(s): "
+                f"{', '.join(missing)}"
+            )
+
+    # ---------------------------------------------------------
+    # Dashboard Layout
+    # ---------------------------------------------------------
+
+    def load_dashboard(self):
+        """
+        Loads AHUs and Rooms from the Name sheet.
+        """
 
         df = pd.read_excel(
             self.excel_path,
@@ -37,9 +60,11 @@ class ExcelLoader:
 
         df = df.fillna("")
 
-        # remove empty rows
         df = df[
-            ~(df.astype(str).apply(lambda x: x.str.strip()).eq("").all(axis=1))
+            ~(df.astype(str)
+              .apply(lambda x: x.str.strip())
+              .eq("")
+              .all(axis=1))
         ]
 
         columns = list(df.columns)
@@ -63,7 +88,6 @@ class ExcelLoader:
             room = str(row[room_col]).strip()
             room_no = str(row[room_no_col]).strip()
 
-            # New AHU starts
             if ahu != "":
 
                 current = {
@@ -97,31 +121,79 @@ class ExcelLoader:
 
         return ahus
 
+    # ---------------------------------------------------------
+    # PLC Monitor Tags
+    # ---------------------------------------------------------
 
+    def load_monitor_tags(self):
+        """
+        Loads PLC monitoring tags from the Monitor sheet.
+        """
+
+        df = pd.read_excel(
+            self.excel_path,
+            sheet_name="Monitor"
+        )
+
+        df = df.fillna("")
+
+        required_columns = [
+            "Name",
+            "Room No",
+            "Data",
+            "DB",
+            "Data type",
+            "Offset",
+        ]
+
+        self._validate_columns(
+            dataframe=df,
+            required_columns=required_columns,
+            sheet_name="Monitor"
+        )
+
+        tags = []
+
+        for _, row in df.iterrows():
+
+            name = str(row["Name"]).strip()
+            room_no = str(row["Room No"]).strip()
+            parameter = str(row["Data"]).strip()
+
+            db = str(row["DB"]).strip()
+            datatype = str(row["Data type"]).strip().upper()
+            offset = float(row["Offset"])
+
+            # Convert DB1 -> 1
+            db = int(db.replace("DB", ""))
+
+            tags.append(
+                PLCTag(
+                    name=name,
+                    room_no=room_no,
+                    parameter=parameter,
+                    db=db,
+                    datatype=datatype,
+                    offset=offset,
+                )
+            )
+
+        return tags
+
+
+# -------------------------------------------------------------
+# Testing
 # -------------------------------------------------------------
 
 if __name__ == "__main__":
 
     loader = ExcelLoader("data/Details.xlsx")
 
-    ahus = loader.load()
+    tags = loader.load_monitor_tags()
 
-    print("=" * 60)
+    print("=" * 80)
+    print(f"PLC Tags Loaded : {len(tags)}")
+    print("=" * 80)
 
-    print(f"AHUs Found : {len(ahus)}")
-
-    print("=" * 60)
-
-    total_rooms = 0
-
-    for ahu in ahus:
-
-        count = len(ahu["rooms"])
-
-        total_rooms += count
-
-        print(f"{ahu['ahu']:<15} {count} rooms")
-
-    print("=" * 60)
-
-    print("Total Rooms :", total_rooms)
+    for tag in tags[:10]:
+        print(tag)

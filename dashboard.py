@@ -19,7 +19,7 @@ class Dashboard(QWidget):
         super().__init__()
 
         self.loader = ExcelLoader("data/Details.xlsx")
-        self.ahus = self.loader.load()
+        self.ahus = self.loader.load_dashboard()
 
         self.build_ui()
 
