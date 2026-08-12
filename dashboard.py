@@ -35,7 +35,12 @@ class Dashboard(QWidget):
 
         # Initial update
         values = self.plc.read_all_values()
-        self.update_values(values)
+        alarm_bits = self.plc.read_alarm_bits()
+
+        self.update_values(
+            values,
+            alarm_bits,
+        )
 
         # -------------------------------------------------
         # Refresh PLC every second
@@ -192,7 +197,7 @@ class Dashboard(QWidget):
     # LIVE PLC UPDATE
     # =========================================================
 
-    def update_values(self, values):
+    def update_values(self,values,alarm_bits,):
         """
         Updates all room values on the dashboard.
         """
@@ -201,11 +206,29 @@ class Dashboard(QWidget):
 
             if "temperature" in room_values:
 
-                self.update_room_value(
-                    room_no,
-                    "temperature",
-                    room_values["temperature"]
-                )
+                warning = alarm_bits.get(
+                (room_no, "temperature", "warning"),
+                False,
+            )
+
+            critical = alarm_bits.get(
+                (room_no, "temperature", "critical"),
+                False,
+            )
+
+            state = "normal"
+
+            if critical:
+                state = "alarm"
+            elif warning:
+                state = "warning"
+
+            self.update_room_value(
+                room_no,
+                "temperature",
+                room_values["temperature"],
+                state,
+            )
 
             if "humidity" in room_values:
 
@@ -271,8 +294,9 @@ class Dashboard(QWidget):
     # =========================================================
 
     def refresh_plc(self):
+        print("Refreshing PLC...")
         """
-        Reads the latest values from the PLC and updates
+        Reads the latest PLC values and updates
         the dashboard.
         """
 
@@ -280,12 +304,16 @@ class Dashboard(QWidget):
 
             values = self.plc.read_all_values()
 
-            self.update_values(values)
+            alarm_bits = self.plc.read_alarm_bits()
+
+            self.update_values(
+                values,
+                alarm_bits,
+            )
 
         except Exception as e:
 
             print("PLC Refresh Error:", e)
-
     # =========================================================
     # CLEANUP
     # =========================================================

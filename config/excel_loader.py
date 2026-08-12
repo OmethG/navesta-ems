@@ -4,6 +4,8 @@ import pandas as pd
 
 from plc.plc_tag import PLCTag
 
+from plc.alarm_tag import AlarmTag
+
 
 class ExcelLoader:
     """
@@ -180,6 +182,171 @@ class ExcelLoader:
 
         return tags
 
+    # ---------------------------------------------------------
+
+    def load_alarm_tags(self):
+        """
+        Loads PLC alarm bits from the Alarms sheet.
+        """
+
+        import re
+
+        df = pd.read_excel(
+            self.excel_path,
+            sheet_name="Alarms"
+        )
+
+        df = df.fillna("")
+
+        required_columns = [
+            "Name",
+            "DataType",
+            "Address",
+        ]
+
+        self._validate_columns(
+            dataframe=df,
+            required_columns=required_columns,
+            sheet_name="Alarms"
+        )
+
+        #
+        # Build room lookup from monitor tags
+        #
+
+        monitor_tags = self.load_monitor_tags()
+
+
+        alarms = []
+
+        for _, row in df.iterrows():
+
+            if str(row["DataType"]).upper() != "BOOL":
+                continue
+
+            alarm_name = str(row["Name"]).strip()
+
+            #
+            # Determine warning / critical
+            # Parse address
+            #
+
+            plc_tag = str(row["PLC tag"]).upper()
+
+# -----------------------------
+# Alarm Type
+# -----------------------------
+
+            if "CRITICAL" in plc_tag:
+                alarm_type = "critical"
+            else:
+                alarm_type = "warning"
+
+            # -----------------------------
+            # Parameter
+            # -----------------------------
+
+            if "TEMP" in plc_tag:
+                parameter = "temperature"
+
+            elif "RH" in plc_tag:
+                parameter = "humidity"
+
+            elif "PRESS" in plc_tag:
+                parameter = "pressure"
+
+            else:
+                continue
+
+            # -----------------------------
+            # Room Name
+            # -----------------------------
+
+            parts = plc_tag.split(".")
+
+            if len(parts) < 2:
+                continue
+
+            room_name = (
+                parts[1]
+                .replace('"', "")
+                .replace("_", "")
+                .replace(" ", "")
+                .lower()
+            )
+
+                        # -----------------------------
+            # Match monitor tag
+            # -----------------------------
+
+            matched = None
+
+            for tag in monitor_tags:
+
+                monitor_name = (
+                    tag.name
+                    .replace("_", "")
+                    .replace(" ", "")
+                    .lower()
+                )
+
+                if (
+                    monitor_name == room_name
+                    and tag.parameter.lower() == parameter
+                ):
+                    matched = tag
+                    break
+
+            if matched is None:
+                continue
+
+            room_no = matched.room_no
+
+
+
+            # Example:
+            # %DB101.DBX2.1
+            #
+
+            address = str(row["Address"]).strip()
+
+            match = re.search(
+                r"DB(\d+)\.DBX(\d+)\.(\d+)",
+                address
+            )
+
+            if match is None:
+                continue
+
+            db = int(match.group(1))
+            byte = int(match.group(2))
+            bit = int(match.group(3))
+
+            alarms.append(
+
+                AlarmTag(
+
+                    name=alarm_name,
+
+                    room_name=room_name,
+
+                    room_no=room_no,
+
+                    parameter=parameter,
+
+                    alarm_type=alarm_type,
+
+                    db=db,
+
+                    byte=byte,
+
+                    bit=bit,
+                )
+
+            )
+
+        return alarms
+
 
 # -------------------------------------------------------------
 # Testing
@@ -189,11 +356,22 @@ if __name__ == "__main__":
 
     loader = ExcelLoader("data/Details.xlsx")
 
-    tags = loader.load_monitor_tags()
+    alarms = loader.load_alarm_tags()
 
     print("=" * 80)
-    print(f"PLC Tags Loaded : {len(tags)}")
+    print(f"Alarm Tags Loaded : {len(alarms)}")
     print("=" * 80)
 
-    for tag in tags[:10]:
-        print(tag)
+    for alarm in alarms[:10]:
+        print(alarm)
+
+
+
+    from collections import Counter
+
+    counter = Counter()
+
+    for alarm in alarms:
+        counter[(alarm.parameter, alarm.alarm_type)] += 1
+
+    print(counter)

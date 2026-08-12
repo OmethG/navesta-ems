@@ -20,6 +20,8 @@ class PLCManager:
 
         self.tags = self.loader.load_monitor_tags()
 
+        self.alarm_tags = self.loader.load_alarm_tags()
+
         self.client = Snap7Client()
 
     # ---------------------------------------------------------
@@ -94,6 +96,33 @@ class PLCManager:
 
         return values
 
+    # ---------------------------------------------------------
+
+    def read_alarm_bits(self):
+        """
+        Reads all PLC alarm bits.
+        """
+
+        alarms = {}
+
+        for tag in self.alarm_tags:
+
+            value = self.client.read_bool(
+                db_number=tag.db,
+                byte_offset=tag.byte,
+                bit_offset=tag.bit,
+            )
+
+            key = (
+                tag.room_no,
+                tag.parameter,
+                tag.alarm_type,
+            )
+
+            alarms[key] = value
+
+        return alarms
+
 
 # -------------------------------------------------------------
 # Test
@@ -107,11 +136,13 @@ if __name__ == "__main__":
 
     values = plc.read_all_values()
 
+    alarm_bits = plc.read_alarm_bits()
+
     print("=" * 80)
     print(f"Rooms Read : {len(values)}")
     print("=" * 80)
 
-    for room_no, room_values in list(values.items())[:10]:
+    for room_no, room_values in list(values.items())[:5]:
 
         print(room_no)
 
@@ -120,5 +151,12 @@ if __name__ == "__main__":
             print(f"   {parameter:<12} = {value}")
 
         print()
+
+    print("=" * 80)
+    print("Alarm Bits")
+    print("=" * 80)
+
+    for key, value in list(alarm_bits.items())[:20]:
+        print(key, "=", value)
 
     plc.disconnect()
