@@ -1,0 +1,5 @@
+PLC_IP = "192.168.0.1"
+
+PLC_RACK = 0
+
+PLC_SLOT = 1
