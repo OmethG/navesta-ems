@@ -4,23 +4,20 @@ from dataclasses import dataclass
 @dataclass(slots=True)
 class PLCTag:
     """
-    Represents a single monitored value inside the PLC.
-
-    Each row in the Monitor sheet will become one PLCTag object.
-
-    Example:
-        Room 101 Temperature
-        DB1
-        REAL
-        Offset 0.0
+    Represents a single PLC monitoring tag from the
+    Monitor sheet in Details.xlsx.
     """
 
-    ahu: str
-    room_no: str
-    room_name: str
+    # Display name from the Monitor sheet
+    name: str
 
+    # Room number (e.g. G024)
+    room_no: str
+
+    # Temperature / RH / Pressure
     parameter: str
 
+    # PLC information
     db: int
     datatype: str
     offset: float
