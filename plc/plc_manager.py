@@ -123,6 +123,32 @@ class PLCManager:
 
         return alarms
 
+        # ---------------------------------------------------------
+
+    def read_dashboard_data(self):
+        """
+        Returns all live dashboard data including
+        values and alarm states.
+        """
+
+        values = self.read_all_values()
+        alarm_bits = self.read_alarm_bits()
+
+        for room_no, room in values.items():
+
+            # Default states
+            room["temperature_state"] = "normal"
+            room["humidity_state"] = "normal"
+            room["pressure_state"] = "normal"
+
+            # Temperature alarms
+            if alarm_bits.get((room_no, "temperature", "critical"), False):
+                room["temperature_state"] = "alarm"
+
+            elif alarm_bits.get((room_no, "temperature", "warning"), False):
+                room["temperature_state"] = "warning"
+
+        return values
 
 # -------------------------------------------------------------
 # Test

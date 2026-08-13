@@ -274,31 +274,49 @@ class ExcelLoader:
                 .replace(" ", "")
                 .lower()
             )
-
-                        # -----------------------------
+            
+            # -----------------------------
             # Match monitor tag
             # -----------------------------
 
             matched = None
 
+            alarm_key = (
+                room_name
+                .replace("_", "")
+                .replace(" ", "")
+                .replace("-", "")
+                .replace("/", "")
+                .replace('"', "")
+                .lower()
+            )
+
             for tag in monitor_tags:
 
-                monitor_name = (
+                monitor_key = (
                     tag.name
                     .replace("_", "")
                     .replace(" ", "")
+                    .replace("-", "")
+                    .replace("/", "")
+                    .replace('"', "")
                     .lower()
                 )
 
                 if (
-                    monitor_name == room_name
-                    and tag.parameter.lower() == parameter
-                ):
+                    alarm_key in monitor_key
+                    or monitor_key in alarm_key
+                ) and tag.parameter.lower() == parameter:
+
                     matched = tag
                     break
 
             if matched is None:
                 continue
+
+            print(
+                f"{alarm_key} -> {matched.room_no} ({matched.parameter})"
+            )
 
             room_no = matched.room_no
 

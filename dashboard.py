@@ -34,13 +34,9 @@ class Dashboard(QWidget):
         self.plc.connect()
 
         # Initial update
-        values = self.plc.read_all_values()
-        alarm_bits = self.plc.read_alarm_bits()
+        dashboard_data = self.plc.read_dashboard_data()
 
-        self.update_values(
-            values,
-            alarm_bits,
-        )
+        self.update_values(dashboard_data)
 
         # -------------------------------------------------
         # Refresh PLC every second
@@ -197,7 +193,7 @@ class Dashboard(QWidget):
     # LIVE PLC UPDATE
     # =========================================================
 
-    def update_values(self,values,alarm_bits,):
+    def update_values(self, values):
         """
         Updates all room values on the dashboard.
         """
@@ -227,7 +223,7 @@ class Dashboard(QWidget):
                 room_no,
                 "temperature",
                 room_values["temperature"],
-                state,
+                room_values["temperature_state"],
             )
 
             if "humidity" in room_values:
@@ -235,7 +231,8 @@ class Dashboard(QWidget):
                 self.update_room_value(
                     room_no,
                     "humidity",
-                    room_values["humidity"]
+                    room_values["humidity"],
+                    room_values["humidity_state"],
                 )
 
             if "pressure" in room_values:
@@ -243,7 +240,8 @@ class Dashboard(QWidget):
                 self.update_room_value(
                     room_no,
                     "pressure",
-                    room_values["pressure"]
+                    room_values["pressure"],
+                    room_values["pressure_state"],
                 )
 
 
@@ -253,20 +251,10 @@ class Dashboard(QWidget):
         room_no: str,
         parameter: str,
         value,
-        state: str = "normal"
+        state: str = "normal",
     ):
         """
-        Update a single room value on the dashboard.
-
-        Parameters
-        ----------
-        room_no : Room number (e.g. G024)
-
-        parameter : temperature | humidity | pressure
-
-        value : New value to display
-
-        state : normal | warning | alarm
+        Update a single room value.
         """
 
         room = self.room_widgets.get(room_no)
@@ -279,12 +267,30 @@ class Dashboard(QWidget):
         if label is None:
             return
 
+        # -----------------------------
         # Update value
-        label.setText(str(value))
+        # -----------------------------
 
+        if isinstance(value, float):
+            label.setText(f"{value:.1f}")
+        else:
+            label.setText(str(value))
+
+        # -----------------------------
         # Update colour
+        # -----------------------------
+
+        if state == "alarm":
+            colour = "#E53935"       # Red
+
+        elif state == "warning":
+            colour = "#F9A825"       # Yellow
+
+        else:
+            colour = "#16A34A"       # Green
+
         label.setStyleSheet(f"""
-            color:{Theme.color(state)};
+            color:{colour};
             font-weight:700;
             background:transparent;
         """)
