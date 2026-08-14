@@ -107,11 +107,27 @@ class PLCManager:
 
         for tag in self.alarm_tags:
 
-            value = self.client.read_bool(
-                db_number=tag.db,
-                byte_offset=tag.byte,
-                bit_offset=tag.bit,
-            )
+            try:
+
+                value = self.client.read_bool(
+                    db_number=tag.db,
+                    byte_offset=tag.byte,
+                    bit_offset=tag.bit,
+                )
+
+            except Exception as e:
+
+                print(
+                    f"FAILED -> "
+                    f"Room={tag.room_no} "
+                    f"Parameter={tag.parameter} "
+                    f"Type={tag.alarm_type} "
+                    f"DB={tag.db} "
+                    f"Byte={tag.byte} "
+                    f"Bit={tag.bit}"
+                )
+
+                raise
 
             key = (
                 tag.room_no,
@@ -148,6 +164,47 @@ class PLCManager:
             elif alarm_bits.get((room_no, "temperature", "warning"), False):
                 room["temperature_state"] = "warning"
 
+            # Humidity alarms
+            if alarm_bits.get((room_no, "humidity", "critical"), False):
+                room["humidity_state"] = "alarm"
+
+            elif alarm_bits.get((room_no, "humidity", "warning"), False):
+                room["humidity_state"] = "warning"  
+
+            # Pressure alarms
+            if alarm_bits.get((room_no, "pressure", "critical"), False):
+                room["pressure_state"] = "alarm"
+
+            elif alarm_bits.get((room_no, "pressure", "warning"), False):
+                room["pressure_state"] = "warning"  
+
+            if room_no == "G024":
+
+                print(
+                    "\n------------------------------"
+                )
+
+                print(
+                    "Temperature Warning :",
+                    alarm_bits.get((room_no, "temperature", "warning"))
+                )
+
+                print(
+                    "Temperature Critical:",
+                    alarm_bits.get((room_no, "temperature", "critical"))
+                )
+
+                print(
+                    "Humidity Warning    :",
+                    alarm_bits.get((room_no, "humidity", "warning"))
+                )
+
+                print(
+                    "Humidity Critical   :",
+                    alarm_bits.get((room_no, "humidity", "critical"))
+                )
+
+                print(values["G024"])
         return values
 
 # -------------------------------------------------------------
@@ -156,13 +213,19 @@ class PLCManager:
 
 if __name__ == "__main__":
 
-    plc = PLCManager("data/Details.xlsx")
+    plc = PLCManager("data/Read_Data.xlsx")
 
     plc.connect()
 
     values = plc.read_all_values()
 
     alarm_bits = plc.read_alarm_bits()
+
+    print("\n=== G024 Alarm Bits ===")
+
+    for key, value in alarm_bits.items():
+        if key[0] == "G024":
+            print(key, "=", value)
 
     print("=" * 80)
     print(f"Rooms Read : {len(values)}")

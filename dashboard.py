@@ -19,10 +19,10 @@ class Dashboard(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.loader = ExcelLoader("data/Details.xlsx")
+        self.loader = ExcelLoader("data/Read_Data.xlsx")
         self.ahus = self.loader.load_dashboard()
 
-        self.plc = PLCManager("data/Details.xlsx")
+        self.plc = PLCManager("data/Read_Data.xlsx")
 
         self.build_ui()
 
@@ -202,29 +202,22 @@ class Dashboard(QWidget):
 
             if "temperature" in room_values:
 
-                warning = alarm_bits.get(
-                (room_no, "temperature", "warning"),
-                False,
-            )
+                self.update_room_value(
+                    room_no,
+                    "temperature",
+                    room_values["temperature"],
+                    room_values.get(
+                        "temperature_state",
+                        "normal"
+                    ),
+                )
 
-            critical = alarm_bits.get(
-                (room_no, "temperature", "critical"),
-                False,
-            )
-
-            state = "normal"
-
-            if critical:
-                state = "alarm"
-            elif warning:
-                state = "warning"
-
-            self.update_room_value(
-                room_no,
-                "temperature",
-                room_values["temperature"],
-                room_values["temperature_state"],
-            )
+            if room_no == "G024":
+                print(
+                    room_no,
+                    room_values["humidity"],
+                    room_values["humidity_state"],
+                )    
 
             if "humidity" in room_values:
 
@@ -300,7 +293,6 @@ class Dashboard(QWidget):
     # =========================================================
 
     def refresh_plc(self):
-        print("Refreshing PLC...")
         """
         Reads the latest PLC values and updates
         the dashboard.
@@ -308,13 +300,10 @@ class Dashboard(QWidget):
 
         try:
 
-            values = self.plc.read_all_values()
-
-            alarm_bits = self.plc.read_alarm_bits()
+            dashboard_data = self.plc.read_dashboard_data()
 
             self.update_values(
-                values,
-                alarm_bits,
+                dashboard_data
             )
 
         except Exception as e:

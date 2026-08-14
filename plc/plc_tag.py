@@ -5,7 +5,7 @@ from dataclasses import dataclass
 class PLCTag:
     """
     Represents a single PLC monitoring tag from the
-    Monitor sheet in Details.xlsx.
+    Monitor sheet in Read_Data.xlsx.
     """
 
     # Display name from the Monitor sheet

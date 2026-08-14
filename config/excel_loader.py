@@ -9,7 +9,7 @@ from plc.alarm_tag import AlarmTag
 
 class ExcelLoader:
     """
-    Loads configuration data from Details.xlsx.
+    Loads configuration data from Read_Data.xlsx.
     """
 
     def __init__(self, excel_path: str):
@@ -57,7 +57,7 @@ class ExcelLoader:
 
         df = pd.read_excel(
             self.excel_path,
-            sheet_name="Name"
+            sheet_name="AHU Rooms"
         )
 
         df = df.fillna("")
@@ -186,182 +186,82 @@ class ExcelLoader:
 
     def load_alarm_tags(self):
         """
-        Loads PLC alarm bits from the Alarms sheet.
+        Loads all alarm bits from the Normal Alarm
+        and Critical Alarm sheets.
         """
-
-        import re
-
-        df = pd.read_excel(
-            self.excel_path,
-            sheet_name="Alarms"
-        )
-
-        df = df.fillna("")
-
-        required_columns = [
-            "Name",
-            "DataType",
-            "Address",
-        ]
-
-        self._validate_columns(
-            dataframe=df,
-            required_columns=required_columns,
-            sheet_name="Alarms"
-        )
-
-        #
-        # Build room lookup from monitor tags
-        #
-
-        monitor_tags = self.load_monitor_tags()
-
 
         alarms = []
 
-        for _, row in df.iterrows():
+        sheets = [
+            ("Normal Alarm", "warning"),
+            ("Critical Alarm", "critical"),
+        ]
 
-            if str(row["DataType"]).upper() != "BOOL":
-                continue
+        for sheet_name, alarm_type in sheets:
 
-            alarm_name = str(row["Name"]).strip()
-
-            #
-            # Determine warning / critical
-            # Parse address
-            #
-
-            plc_tag = str(row["PLC tag"]).upper()
-
-# -----------------------------
-# Alarm Type
-# -----------------------------
-
-            if "CRITICAL" in plc_tag:
-                alarm_type = "critical"
-            else:
-                alarm_type = "warning"
-
-            # -----------------------------
-            # Parameter
-            # -----------------------------
-
-            if "TEMP" in plc_tag:
-                parameter = "temperature"
-
-            elif "RH" in plc_tag:
-                parameter = "humidity"
-
-            elif "PRESS" in plc_tag:
-                parameter = "pressure"
-
-            else:
-                continue
-
-            # -----------------------------
-            # Room Name
-            # -----------------------------
-
-            parts = plc_tag.split(".")
-
-            if len(parts) < 2:
-                continue
-
-            room_name = (
-                parts[1]
-                .replace('"', "")
-                .replace("_", "")
-                .replace(" ", "")
-                .lower()
-            )
-            
-            # -----------------------------
-            # Match monitor tag
-            # -----------------------------
-
-            matched = None
-
-            alarm_key = (
-                room_name
-                .replace("_", "")
-                .replace(" ", "")
-                .replace("-", "")
-                .replace("/", "")
-                .replace('"', "")
-                .lower()
+            df = pd.read_excel(
+                self.excel_path,
+                sheet_name=sheet_name
             )
 
-            for tag in monitor_tags:
+            df = df.fillna("")
 
-                monitor_key = (
-                    tag.name
-                    .replace("_", "")
-                    .replace(" ", "")
-                    .replace("-", "")
-                    .replace("/", "")
-                    .replace('"', "")
-                    .lower()
+            required_columns = [
+                "Room No",
+                "Data",
+                "DB",
+                "Byte_Offset",
+                "Bit_Offset",
+            ]
+
+            self._validate_columns(
+                dataframe=df,
+                required_columns=required_columns,
+                sheet_name=sheet_name,
+            )
+
+            for _, row in df.iterrows():
+
+                parameter = str(row["Data"]).lower()
+
+                if "temp" in parameter:
+                    parameter = "temperature"
+
+                elif "rh" in parameter:
+                    parameter = "humidity"
+
+                elif "press" in parameter:
+                    parameter = "pressure"
+
+                else:
+                    continue
+
+                db = int(
+                    str(row["DB"]).replace("DB", "")
                 )
 
-                if (
-                    alarm_key in monitor_key
-                    or monitor_key in alarm_key
-                ) and tag.parameter.lower() == parameter:
+                alarms.append(
 
-                    matched = tag
-                    break
+                    AlarmTag(
 
-            if matched is None:
-                continue
+                        name=str(row["Name"]),
 
-            print(
-                f"{alarm_key} -> {matched.room_no} ({matched.parameter})"
-            )
+                        room_name=str(row["Name"]),
 
-            room_no = matched.room_no
+                        room_no=str(row["Room No"]).strip(),
 
+                        parameter=parameter,
 
+                        alarm_type=alarm_type,
 
-            # Example:
-            # %DB101.DBX2.1
-            #
+                        db=db,
 
-            address = str(row["Address"]).strip()
+                        byte=int(row["Byte_Offset"]),
 
-            match = re.search(
-                r"DB(\d+)\.DBX(\d+)\.(\d+)",
-                address
-            )
+                        bit=int(row["Bit_Offset"]),
+                    )
 
-            if match is None:
-                continue
-
-            db = int(match.group(1))
-            byte = int(match.group(2))
-            bit = int(match.group(3))
-
-            alarms.append(
-
-                AlarmTag(
-
-                    name=alarm_name,
-
-                    room_name=room_name,
-
-                    room_no=room_no,
-
-                    parameter=parameter,
-
-                    alarm_type=alarm_type,
-
-                    db=db,
-
-                    byte=byte,
-
-                    bit=bit,
                 )
-
-            )
 
         return alarms
 
@@ -372,7 +272,7 @@ class ExcelLoader:
 
 if __name__ == "__main__":
 
-    loader = ExcelLoader("data/Details.xlsx")
+    loader = ExcelLoader("data/Read_Data.xlsx")
 
     alarms = loader.load_alarm_tags()
 
@@ -380,8 +280,9 @@ if __name__ == "__main__":
     print(f"Alarm Tags Loaded : {len(alarms)}")
     print("=" * 80)
 
-    for alarm in alarms[:10]:
-        print(alarm)
+    for alarm in alarms:
+        if alarm.room_no == "G024":
+            print(alarm)
 
 
 
