@@ -143,18 +143,7 @@ class PLCManager:
                     bit_offset=tag.bit,
                 )
 
-            except Exception as e:
-
-                print(
-                    f"FAILED -> "
-                    f"Room={tag.room_no} "
-                    f"Parameter={tag.parameter} "
-                    f"Type={tag.alarm_type} "
-                    f"DB={tag.db} "
-                    f"Byte={tag.byte} "
-                    f"Bit={tag.bit}"
-                )
-
+            except Exception:
                 raise
 
             key = (
@@ -206,33 +195,6 @@ class PLCManager:
             elif alarm_bits.get((room_no, "pressure", "warning"), False):
                 room["pressure_state"] = "warning"  
 
-            if room_no == "G024":
-
-                print(
-                    "\n------------------------------"
-                )
-
-                print(
-                    "Temperature Warning :",
-                    alarm_bits.get((room_no, "temperature", "warning"))
-                )
-
-                print(
-                    "Temperature Critical:",
-                    alarm_bits.get((room_no, "temperature", "critical"))
-                )
-
-                print(
-                    "Humidity Warning    :",
-                    alarm_bits.get((room_no, "humidity", "warning"))
-                )
-
-                print(
-                    "Humidity Critical   :",
-                    alarm_bits.get((room_no, "humidity", "critical"))
-                )
-
-                print(values["G024"])
         return values
 
 # -------------------------------------------------------------

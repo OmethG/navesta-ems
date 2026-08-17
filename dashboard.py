@@ -315,15 +315,7 @@ class Dashboard(QWidget):
 
         try:
 
-            import time
-
-            start = time.perf_counter()
-
             dashboard_data = self.plc.read_dashboard_data()
-
-            elapsed = time.perf_counter() - start
-
-            print(f"PLC Read Time: {elapsed:.3f} sec")
 
             self.update_values(
                 dashboard_data
