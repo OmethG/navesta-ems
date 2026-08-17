@@ -1,5 +1,6 @@
 from config.excel_loader import ExcelLoader
 from plc.snap7_client import Snap7Client
+from snap7.util import get_real, get_bool
 
 
 class PLCManager:
@@ -24,45 +25,173 @@ class PLCManager:
 
         self.client = Snap7Client()
 
+        # PLC connection state
+        self.connected = False
+
         # ------------------------------------------
         # PLC Block Cache
         # ------------------------------------------
 
-        self.db1_cache = None
-        self.db101_cache = None  
+        # Cache for each PLC Data Block
+        self.db_cache = {} 
 
     # ---------------------------------------------------------
 
     def connect(self):
-        """Connect to the PLC."""
-        self.client.connect()
+        """
+        Connect to the PLC.
+
+        Returns
+        -------
+        bool
+            True if connected.
+        """
+
+        try:
+
+            self.client.connect()
+
+            self.connected = self.client.is_connected()
+
+        except Exception:
+
+            self.connected = False
+
+        return self.connected
 
     # ---------------------------------------------------------
 
     def disconnect(self):
-        """Disconnect from the PLC."""
+        """
+        Disconnect from the PLC.
+        """
+
         self.client.disconnect()
+
+        self.connected = False
+
+    def ensure_connected(self):
+        """
+        Ensures the PLC is connected.
+        """
+
+        print("\n==============================")
+        print("ensure_connected()")
+        print("==============================")
+        print("Current connected flag :", self.connected)
+        print("Snap7 connected        :", self.client.is_connected())
+
+        # Already connected
+        if self.connected and self.client.is_connected():
+            print("Already connected.")
+            return True
+
+        # Connection lost
+        self.connected = False
+
+        try:
+
+            print("Attempting PLC connection...")
+
+            self.client.connect()
+
+            self.connected = self.client.is_connected()
+
+            print("Connected after connect():", self.connected)
+
+        except Exception as e:
+
+            print("Connection Exception:", e)
+
+            self.connected = False
+
+        print("Returning:", self.connected)
+
+        return self.connected
+
+    # ---------------------------------------------------------
+
+    def calculate_db_sizes(self):
+        """
+        Calculates the number of bytes required
+        to read each PLC DB.
+        """
+
+        db1_size = 0
+
+        for tag in self.tags:
+
+            end = int(tag.offset) + 4
+
+            if end > db1_size:
+                db1_size = end
+
+        db101_size = 0
+
+        for tag in self.alarm_tags:
+
+            end = tag.byte + 1
+
+            if end > db101_size:
+                db101_size = end
+
+        return db1_size, db101_size    
+
+    # ---------------------------------------------------------
 
     # ---------------------------------------------------------
 
     def refresh_db_cache(self):
         """
-        Reads the PLC blocks once and stores them locally.
+        Reads every PLC DB once and stores the
+        bytes in memory.
         """
 
-        # DB1 contains all REAL values
-        self.db1_cache = self.client.read_db(
-            db_number=1,
-            start=0,
-            size=1024,
-        )
+        if not self.connected:
+            return
 
-        # DB101 contains alarm bits
-        self.db101_cache = self.client.read_db(
-            db_number=101,
-            start=0,
-            size=256,
-        )    
+        # Find every DB used in the project
+        dbs = set()
+
+        for tag in self.tags:
+            dbs.add(tag.db)
+
+        for tag in self.alarm_tags:
+            dbs.add(tag.db)
+
+        self.db_cache.clear()
+
+        for db in sorted(dbs):
+
+            max_size = 0
+
+            # REAL values
+            for tag in self.tags:
+
+                if tag.db != db:
+                    continue
+
+                end = int(tag.offset) + 4
+
+                if end > max_size:
+                    max_size = end
+
+            # BOOL values
+            for tag in self.alarm_tags:
+
+                if tag.db != db:
+                    continue
+
+                end = tag.byte + 1
+
+                if end > max_size:
+                    max_size = end
+
+            self.db_cache[db] = self.client.read_db(
+                db_number=db,
+                start=0,
+                size=max_size,
+            )
 
     # ---------------------------------------------------------
 
@@ -97,6 +226,9 @@ class PLCManager:
         }
         """
 
+        if not self.connected:
+            return {}
+
         values = {}
 
         for tag in self.tags:
@@ -104,9 +236,11 @@ class PLCManager:
             if tag.datatype != "REAL":
                 continue
 
-            value = self.client.read_real(
-                tag.db,
-                tag.offset,
+            cache = self.db_cache[tag.db]
+
+            value = get_real(
+                cache,
+                int(tag.offset),
             )
 
             room = tag.room_no
@@ -131,16 +265,20 @@ class PLCManager:
         Reads all PLC alarm bits.
         """
 
+        if not self.connected:
+            return {}
         alarms = {}
 
         for tag in self.alarm_tags:
 
             try:
 
-                value = self.client.read_bool(
-                    db_number=tag.db,
-                    byte_offset=tag.byte,
-                    bit_offset=tag.bit,
+                cache = self.db_cache[tag.db]
+
+                value = get_bool(
+                    cache,
+                    tag.byte,
+                    tag.bit,
                 )
 
             except Exception:
@@ -163,8 +301,13 @@ class PLCManager:
         Returns all live dashboard data including
         values and alarm states.
         """
+        if not self.connected:
+            return {}
+
+        self.refresh_db_cache()
 
         values = self.read_all_values()
+
         alarm_bits = self.read_alarm_bits()
 
         for room_no, room in values.items():
@@ -205,13 +348,20 @@ if __name__ == "__main__":
 
     plc = PLCManager("data/Read_Data.xlsx")
 
-    plc.connect()
+    connected = plc.connect()
+
+    print("Connected:", plc.ensure_connected())
+
+    db1, db101 = plc.calculate_db_sizes()
+
+    print(f"DB1 Size   : {db1}")
+    print(f"DB101 Size : {db101}")
     plc.refresh_db_cache()
 
-    print(
-        len(plc.db1_cache),
-        len(plc.db101_cache),
-    )
+    print("\nCached DBs:")
+
+    for db, data in plc.db_cache.items():
+        print(f"DB{db} -> {len(data)} bytes")
 
     values = plc.read_all_values()
 

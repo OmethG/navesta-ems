@@ -226,7 +226,10 @@ class ColumnWidget(QWidget):
             # TEMPERATURE
             # ==============================================
 
-            temp = QLabel(f"{room['temperature']:.1f}")
+            if isinstance(room["temperature"], (int, float)):
+                temp = QLabel(f"{room['temperature']:.1f}")
+            else:
+                temp = QLabel(str(room["temperature"]))
 
             temp.setObjectName("Value")
 

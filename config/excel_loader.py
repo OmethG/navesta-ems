@@ -6,6 +6,8 @@ from plc.plc_tag import PLCTag
 
 from plc.alarm_tag import AlarmTag
 
+from resource_path import resource_path
+
 
 class ExcelLoader:
     """
@@ -13,7 +15,9 @@ class ExcelLoader:
     """
 
     def __init__(self, excel_path: str):
-        self.excel_path = Path(excel_path)
+        self.excel_path = Path(
+            resource_path(excel_path)
+        )
 
         if not self.excel_path.exists():
             raise FileNotFoundError(

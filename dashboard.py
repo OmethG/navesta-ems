@@ -29,16 +29,12 @@ class Dashboard(QWidget):
         self.build_ui()
 
         # --------------------------------------------
-        # First PLC Update
+        # Initial dashboard state
         # --------------------------------------------
 
-        # Connect to PLC once
-        self.plc.connect()
-
-        # Initial update
-        dashboard_data = self.plc.read_dashboard_data()
-
-        self.update_values(dashboard_data)
+        # Start with no live values.
+        # The timer will connect to the PLC automatically.
+        self.clear_values()
 
         # -------------------------------------------------
         # Refresh PLC every second
@@ -46,7 +42,7 @@ class Dashboard(QWidget):
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.refresh_plc)
-        self.timer.start(1000)
+        self.timer.start(250)
 
     # =========================================================
 
@@ -146,8 +142,10 @@ class Dashboard(QWidget):
 
         rightLayout.addStretch()
 
+        self.status_bar = StatusBar()
+
         rightLayout.addWidget(
-            StatusBar(),
+            self.status_bar,
             alignment=Qt.AlignRight
         )
 
@@ -156,7 +154,6 @@ class Dashboard(QWidget):
             4
 )
             
-
         # -----------------------------------------------------
         # STYLING
         # -----------------------------------------------------
@@ -246,6 +243,30 @@ class Dashboard(QWidget):
                     room_values["pressure_state"],
                 )
 
+    def clear_values(self):
+        """
+        Display '--' for every parameter when the PLC
+        is disconnected.
+        """
+
+        for room in self.room_widgets.values():
+
+            for parameter in ("temperature", "humidity", "pressure"):
+
+                label = room.get(parameter)
+
+                if label is None:
+                    continue
+
+                if label.text() != "--":
+                    label.setText("--")
+
+                label.setStyleSheet("""
+                    color:#9CA3AF;
+                    font-weight:700;
+                    background:transparent;
+                """)
+
 
 
     def update_room_value(
@@ -272,12 +293,12 @@ class Dashboard(QWidget):
         # -----------------------------
         # Update value only if changed
         # -----------------------------
-
+        
         if isinstance(value, float):
             new_text = f"{value:.1f}"
         else:
             new_text = str(value)
-
+        
         if label.text() != new_text:
             label.setText(new_text)
 
@@ -309,17 +330,29 @@ class Dashboard(QWidget):
 
     def refresh_plc(self):
         """
-        Reads the latest PLC values and updates
-        the dashboard.
+        Periodically refresh PLC data.
         """
 
         try:
+
+            # Ensure PLC connection
+            if not self.plc.ensure_connected():
+
+                self.clear_values()
+
+                # We'll update the status bar later
+                self.status_bar.set_disconnected()
+
+                return
 
             dashboard_data = self.plc.read_dashboard_data()
 
             self.update_values(
                 dashboard_data
             )
+
+            # We'll update the status bar later
+            self.status_bar.set_connected()
 
         except Exception as e:
 

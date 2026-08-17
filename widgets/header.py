@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
 )
 
 from theme import Theme
-
+from resource_path import resource_path
 
 class Header(QFrame):
 
@@ -50,7 +50,9 @@ class Header(QFrame):
             Qt.AlignLeft | Qt.AlignVCenter
         )
 
-        pix = QPixmap("assets/methg_logo.png")
+        pix = QPixmap(
+            resource_path("assets/methg_logo.png")
+        )
 
         if not pix.isNull():
 
@@ -117,7 +119,9 @@ class Header(QFrame):
             Qt.AlignRight | Qt.AlignVCenter
         )
 
-        nav = QPixmap("assets/navesta_logo.png")
+        nav = QPixmap(
+            resource_path("assets/navesta_logo.png")
+        )
 
         if not nav.isNull():
 
