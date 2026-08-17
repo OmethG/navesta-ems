@@ -72,6 +72,24 @@ class Snap7Client:
 
     # ---------------------------------------------------------
 
+    def read_db(
+        self,
+        db_number: int,
+        start: int,
+        size: int,
+    ):
+        """
+        Reads an entire block from a PLC DB.
+        """
+
+        return self.client.db_read(
+            db_number,
+            start,
+            size,
+        )
+
+    # ---------------------------------------------------------
+
     def read_bool(
         self,
         db_number: int,
@@ -119,6 +137,14 @@ if __name__ == "__main__":
         plc.connect()
 
         print("Connected :", plc.is_connected())
+
+        data = plc.read_db(
+            db_number=1,
+            start=0,
+            size=16,
+        )
+
+        print("Raw DB1 Bytes:", data)
 
         value = plc.read_real(
             db_number=1,

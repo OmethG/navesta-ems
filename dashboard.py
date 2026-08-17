@@ -23,6 +23,8 @@ class Dashboard(QWidget):
         self.ahus = self.loader.load_dashboard()
 
         self.plc = PLCManager("data/Read_Data.xlsx")
+        # Cache previous dashboard data
+        self.previous_values = {}
 
         self.build_ui()
 
@@ -200,6 +202,13 @@ class Dashboard(QWidget):
 
         for room_no, room_values in values.items():
 
+            # Skip this room if nothing changed
+            if self.previous_values.get(room_no) == room_values:
+                continue
+
+            # Save latest state
+            self.previous_values[room_no] = room_values.copy()
+
             if "temperature" in room_values:
 
                 self.update_room_value(
@@ -261,13 +270,16 @@ class Dashboard(QWidget):
             return
 
         # -----------------------------
-        # Update value
+        # Update value only if changed
         # -----------------------------
 
         if isinstance(value, float):
-            label.setText(f"{value:.1f}")
+            new_text = f"{value:.1f}"
         else:
-            label.setText(str(value))
+            new_text = str(value)
+
+        if label.text() != new_text:
+            label.setText(new_text)
 
         # -----------------------------
         # Update colour
@@ -282,11 +294,14 @@ class Dashboard(QWidget):
         else:
             colour = "#16A34A"       # Green
 
-        label.setStyleSheet(f"""
+        style = f"""
             color:{colour};
             font-weight:700;
             background:transparent;
-        """)
+        """
+
+        if label.styleSheet() != style:
+            label.setStyleSheet(style)
 
     # =========================================================
     # PLC REFRESH
@@ -300,7 +315,15 @@ class Dashboard(QWidget):
 
         try:
 
+            import time
+
+            start = time.perf_counter()
+
             dashboard_data = self.plc.read_dashboard_data()
+
+            elapsed = time.perf_counter() - start
+
+            print(f"PLC Read Time: {elapsed:.3f} sec")
 
             self.update_values(
                 dashboard_data

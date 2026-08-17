@@ -24,6 +24,13 @@ class PLCManager:
 
         self.client = Snap7Client()
 
+        # ------------------------------------------
+        # PLC Block Cache
+        # ------------------------------------------
+
+        self.db1_cache = None
+        self.db101_cache = None  
+
     # ---------------------------------------------------------
 
     def connect(self):
@@ -35,6 +42,27 @@ class PLCManager:
     def disconnect(self):
         """Disconnect from the PLC."""
         self.client.disconnect()
+
+    # ---------------------------------------------------------
+
+    def refresh_db_cache(self):
+        """
+        Reads the PLC blocks once and stores them locally.
+        """
+
+        # DB1 contains all REAL values
+        self.db1_cache = self.client.read_db(
+            db_number=1,
+            start=0,
+            size=1024,
+        )
+
+        # DB101 contains alarm bits
+        self.db101_cache = self.client.read_db(
+            db_number=101,
+            start=0,
+            size=256,
+        )    
 
     # ---------------------------------------------------------
 
@@ -216,6 +244,12 @@ if __name__ == "__main__":
     plc = PLCManager("data/Read_Data.xlsx")
 
     plc.connect()
+    plc.refresh_db_cache()
+
+    print(
+        len(plc.db1_cache),
+        len(plc.db101_cache),
+    )
 
     values = plc.read_all_values()
 
