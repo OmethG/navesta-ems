@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow
 
 from dashboard import Dashboard
 from theme import stylesheet
+from ui_scale import UIScale
 
 
 class MainWindow(QMainWindow):
@@ -28,6 +29,9 @@ class MainWindow(QMainWindow):
 def main():
 
     app = QApplication(sys.argv)
+
+    # Initialize UI scaling before creating any widgets
+    UIScale.initialize()
 
     app.setStyleSheet(stylesheet())
 
