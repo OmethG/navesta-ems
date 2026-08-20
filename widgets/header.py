@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
 )
 
 from theme import Theme
+from ui_scale import UIScale
 from resource_path import resource_path
 
 class Header(QFrame):
@@ -17,7 +18,9 @@ class Header(QFrame):
         super().__init__()
 
         self.setObjectName("Header")
-        self.setFixedHeight(Theme.HEADER_HEIGHT)
+        self.setFixedHeight(
+            UIScale.scale(Theme.HEADER_HEIGHT)
+        )
 
         self.build_ui()
 
@@ -30,8 +33,15 @@ class Header(QFrame):
         background:transparent;
         """)
 
-        layout.setContentsMargins(12, 4, 12, 4)
-        layout.setSpacing(10)
+        layout.setContentsMargins(
+            UIScale.scale(12),
+            UIScale.scale(4),
+            UIScale.scale(12),
+            UIScale.scale(4),
+        )
+        layout.setSpacing(
+            UIScale.scale(10)
+        )
 
         # =====================================================
         # LEFT LOGO
@@ -44,7 +54,9 @@ class Header(QFrame):
         border:none;
         """)
 
-        self.methgLogo.setFixedWidth(240)
+        self.methgLogo.setFixedWidth(
+            UIScale.scale(240)
+        )
 
         self.methgLogo.setAlignment(
             Qt.AlignLeft | Qt.AlignVCenter
@@ -58,8 +70,8 @@ class Header(QFrame):
 
             self.methgLogo.setPixmap(
                 pix.scaled(
-                    250,
-                    68,
+                    UIScale.scale(250),
+                    UIScale.scale(68),
                     Qt.KeepAspectRatio,
                     Qt.SmoothTransformation,
                 )
@@ -84,7 +96,7 @@ class Header(QFrame):
 
         center.setSpacing(0)
 
-        title = QLabel("Environmental Monitoring System")
+        title = QLabel("Environmental Monitoring System - OSD Plant")
 
         title.setObjectName("Title")
 
@@ -108,7 +120,9 @@ class Header(QFrame):
         right.addStretch()
 
         self.navestaLogo = QLabel()
-        self.navestaLogo.setFixedWidth(240)
+        self.navestaLogo.setFixedWidth(
+            UIScale.scale(240)
+        )
 
         self.navestaLogo.setStyleSheet("""
         background:transparent;
@@ -127,8 +141,8 @@ class Header(QFrame):
 
             self.navestaLogo.setPixmap(
                 nav.scaled(
-                    210,
-                    65,
+                UIScale.scale(210),
+                UIScale.scale(65),
                     Qt.KeepAspectRatio,
                     Qt.SmoothTransformation,
                 )
